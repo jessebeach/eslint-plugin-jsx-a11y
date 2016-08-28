@@ -4,59 +4,51 @@
  * @author Ethan Cohen
  */
 
+import { getProp, getPropValue } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, getPropValue } from 'jsx-ast-utils';
-
-
 const mouseOverErrorMessage = 'onMouseOver must be accompanied by onFocus for accessibility.';
 const mouseOutErrorMessage = 'onMouseOut must be accompanied by onBlur for accessibility.';
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXOpeningElement: node => {
+    const attributes = node.attributes;
 
-    schema: [
-      { type: 'object' },
-    ],
+    // Check onmouseover / onfocus pairing.
+    const onMouseOver = getProp(attributes, 'onMouseOver');
+    const onMouseOverValue = getPropValue(onMouseOver);
+
+    if (onMouseOver && (onMouseOverValue !== null || onMouseOverValue !== undefined)) {
+      const hasOnFocus = getProp(attributes, 'onFocus');
+      const onFocusValue = getPropValue(hasOnFocus);
+
+      if (hasOnFocus === false || onFocusValue === null || onFocusValue === undefined) {
+        context.report({
+          node,
+          message: mouseOverErrorMessage,
+        });
+      }
+    }
+
+    // Checkout onmouseout / onblur pairing
+    const onMouseOut = getProp(attributes, 'onMouseOut');
+    const onMouseOutValue = getPropValue(onMouseOut);
+    if (onMouseOut && (onMouseOutValue !== null || onMouseOutValue !== undefined)) {
+      const hasOnBlur = getProp(attributes, 'onBlur');
+      const onBlurValue = getPropValue(hasOnBlur);
+
+      if (hasOnBlur === false || onBlurValue === null || onBlurValue === undefined) {
+        context.report({
+          node,
+          message: mouseOutErrorMessage,
+        });
+      }
+    }
   },
+});
 
-  create: context => ({
-    JSXOpeningElement: node => {
-      const attributes = node.attributes;
-
-      // Check onmouseover / onfocus pairing.
-      const onMouseOver = getProp(attributes, 'onMouseOver');
-      const onMouseOverValue = getPropValue(onMouseOver);
-
-      if (onMouseOver && (onMouseOverValue !== null || onMouseOverValue !== undefined)) {
-        const hasOnFocus = getProp(attributes, 'onFocus');
-        const onFocusValue = getPropValue(hasOnFocus);
-
-        if (hasOnFocus === false || onFocusValue === null || onFocusValue === undefined) {
-          context.report({
-            node,
-            message: mouseOverErrorMessage,
-          });
-        }
-      }
-
-      // Checkout onmouseout / onblur pairing
-      const onMouseOut = getProp(attributes, 'onMouseOut');
-      const onMouseOutValue = getPropValue(onMouseOut);
-      if (onMouseOut && (onMouseOutValue !== null || onMouseOutValue !== undefined)) {
-        const hasOnBlur = getProp(attributes, 'onBlur');
-        const onBlurValue = getPropValue(hasOnBlur);
-
-        if (hasOnBlur === false || onBlurValue === null || onBlurValue === undefined) {
-          context.report({
-            node,
-            message: mouseOutErrorMessage,
-          });
-        }
-      }
-    },
-  }),
-};
+module.exports = createRule(rule);

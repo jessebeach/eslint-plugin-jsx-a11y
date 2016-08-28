@@ -4,14 +4,15 @@
  * @author Ethan Cohen
  */
 
-// ----------------------------------------------------------------------------
-// Rule Definition
-// ----------------------------------------------------------------------------
-
 import { getProp, getLiteralPropValue, elementType, propName } from 'jsx-ast-utils';
 import ROLES from '../util/attributes/role';
 import ARIA from '../util/attributes/ARIA';
 import getImplicitRole from '../util/getImplicitRole';
+import createRule from '../util/helpers/createRule';
+
+// ----------------------------------------------------------------------------
+// Rule Definition
+// ----------------------------------------------------------------------------
 
 const errorMessage = (attr, role, tag, isImplicit) => {
   if (isImplicit) {
@@ -22,50 +23,42 @@ This role is implicit on the element ${tag}.`;
   return `The attribute ${attr} is not supported by the role ${role}.`;
 };
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXOpeningElement: node => {
+    // If role is not explicitly defined, then try and get its implicit role.
+    const type = elementType(node);
+    const role = getProp(node.attributes, 'role');
+    const roleValue = role ? getLiteralPropValue(role) : getImplicitRole(type, node.attributes);
+    const isImplicit = roleValue && role === undefined;
 
-    schema: [
-      { type: 'object' },
-    ],
-  },
+    // If there is no explicit or implicit role, then assume that the element
+    // can handle the global set of aria-* properties.
+    // This actually isn't true - should fix in future release.
+    if (typeof roleValue !== 'string' || ROLES[roleValue.toUpperCase()] === undefined) {
+      return;
+    }
 
-  create: context => ({
-    JSXOpeningElement: node => {
-      // If role is not explicitly defined, then try and get its implicit role.
-      const type = elementType(node);
-      const role = getProp(node.attributes, 'role');
-      const roleValue = role ? getLiteralPropValue(role) : getImplicitRole(type, node.attributes);
-      const isImplicit = roleValue && role === undefined;
+    // Make sure it has no aria-* properties defined outside of its property set.
+    const propertySet = ROLES[roleValue.toUpperCase()].props;
+    const invalidAriaPropsForRole = Object.keys(ARIA)
+      .filter(attribute => propertySet.indexOf(attribute) === -1);
 
-      // If there is no explicit or implicit role, then assume that the element
-      // can handle the global set of aria-* properties.
-      // This actually isn't true - should fix in future release.
-      if (typeof roleValue !== 'string' || ROLES[roleValue.toUpperCase()] === undefined) {
+    node.attributes.forEach(prop => {
+      if (prop.type === 'JSXSpreadAttribute') {
         return;
       }
 
-      // Make sure it has no aria-* properties defined outside of its property set.
-      const propertySet = ROLES[roleValue.toUpperCase()].props;
-      const invalidAriaPropsForRole = Object.keys(ARIA)
-        .filter(attribute => propertySet.indexOf(attribute) === -1);
+      const name = propName(prop);
+      const normalizedName = name ? name.toUpperCase() : '';
 
-      node.attributes.forEach(prop => {
-        if (prop.type === 'JSXSpreadAttribute') {
-          return;
-        }
+      if (invalidAriaPropsForRole.indexOf(normalizedName) > -1) {
+        context.report({
+          node,
+          message: errorMessage(name, roleValue, type, isImplicit),
+        });
+      }
+    });
+  },
+});
 
-        const name = propName(prop);
-        const normalizedName = name ? name.toUpperCase() : '';
-
-        if (invalidAriaPropsForRole.indexOf(normalizedName) > -1) {
-          context.report({
-            node,
-            message: errorMessage(name, roleValue, type, isImplicit),
-          });
-        }
-      });
-    },
-  }),
-};
+module.exports = createRule(rule);

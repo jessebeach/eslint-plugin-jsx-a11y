@@ -3,13 +3,15 @@
  * @author Ethan Cohen
  */
 
+import { propName } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+import ariaAttributes from '../util/attributes/ARIA';
+import getSuggestion from '../util/getSuggestion';
+
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
-
-import { propName } from 'jsx-ast-utils';
-import ariaAttributes from '../util/attributes/ARIA';
-import getSuggestion from '../util/getSuggestion';
 
 const errorMessage = name => {
   const dictionary = Object.keys(ariaAttributes).map(aria => aria.toLowerCase());
@@ -23,33 +25,25 @@ const errorMessage = name => {
   return message;
 };
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXAttribute: attribute => {
+    const name = propName(attribute);
+    const normalizedName = name ? name.toUpperCase() : '';
 
-    schema: [
-      { type: 'object' },
-    ],
+    // `aria` needs to be prefix of property.
+    if (normalizedName.indexOf('ARIA-') !== 0) {
+      return;
+    }
+
+    const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
+
+    if (isValid === false) {
+      context.report({
+        node: attribute,
+        message: errorMessage(name),
+      });
+    }
   },
+});
 
-  create: context => ({
-    JSXAttribute: attribute => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
-
-      // `aria` needs to be prefix of property.
-      if (normalizedName.indexOf('ARIA-') !== 0) {
-        return;
-      }
-
-      const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
-
-      if (isValid === false) {
-        context.report({
-          node: attribute,
-          message: errorMessage(name),
-        });
-      }
-    },
-  }),
-};
+module.exports = createRule(rule);

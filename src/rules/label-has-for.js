@@ -3,56 +3,57 @@
  * @author Ethan Cohen
  */
 
+import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
-
 const errorMessage = 'Form controls using a label to identify them must be ' +
   'programmatically associated with the control using htmlFor';
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXOpeningElement: node => {
+    const typeCheck = ['label'].concat(context.options[0]);
+    const nodeType = elementType(node);
 
-    schema: [
-      {
-        oneOf: [
-          { type: 'string' },
-          {
-            type: 'array',
-            items: {
-              type: 'string',
-            },
-            minItems: 1,
-            uniqueItems: true,
-          },
-        ],
-      },
-    ],
+    // Only check 'label' elements and custom types.
+    if (typeCheck.indexOf(nodeType) === -1) {
+      return;
+    }
+
+    const htmlForAttr = getProp(node.attributes, 'htmlFor');
+    const htmlForValue = getPropValue(htmlForAttr);
+    const isInvalid = htmlForAttr === false || !htmlForValue;
+
+    if (isInvalid) {
+      context.report({
+        node,
+        message: errorMessage,
+      });
+    }
   },
+});
 
-  create: context => ({
-    JSXOpeningElement: node => {
-      const typeCheck = ['label'].concat(context.options[0]);
-      const nodeType = elementType(node);
+const meta = {
+  docs: {},
 
-      // Only check 'label' elements and custom types.
-      if (typeCheck.indexOf(nodeType) === -1) {
-        return;
-      }
-
-      const htmlForAttr = getProp(node.attributes, 'htmlFor');
-      const htmlForValue = getPropValue(htmlForAttr);
-      const isInvalid = htmlForAttr === false || !htmlForValue;
-
-      if (isInvalid) {
-        context.report({
-          node,
-          message: errorMessage,
-        });
-      }
+  schema: [
+    {
+      oneOf: [
+        { type: 'string' },
+        {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+          minItems: 1,
+          uniqueItems: true,
+        },
+      ],
     },
-  }),
+  ],
 };
+
+module.exports = createRule(rule, meta);

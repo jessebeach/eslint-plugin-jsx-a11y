@@ -3,12 +3,13 @@
  * @author Ethan Cohen
  */
 
+import { getLiteralPropValue, propName } from 'jsx-ast-utils';
+import ariaAttributes from '../util/attributes/ARIA';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
-
-import { getLiteralPropValue, propName } from 'jsx-ast-utils';
-import ariaAttributes from '../util/attributes/ARIA';
 
 const errorMessage = (name, type, permittedValues) => {
   switch (type) {
@@ -50,49 +51,41 @@ const validityCheck = (value, expectedType, permittedValues) => {
   }
 };
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXAttribute: attribute => {
+    const name = propName(attribute);
+    const normalizedName = name ? name.toUpperCase() : '';
 
-    schema: [
-      { type: 'object' },
-    ],
+    // Not a valid aria-* state or property.
+    if (normalizedName.indexOf('ARIA-') !== 0 || ariaAttributes[normalizedName] === undefined) {
+      return;
+    }
+
+    const value = getLiteralPropValue(attribute);
+
+    // We only want to check literal prop values, so just pass if it's null.
+    if (value === null) {
+      return;
+    }
+
+    // These are the attributes of the property/state to check against.
+    const attributes = ariaAttributes[normalizedName];
+    const permittedType = attributes.type;
+    const allowUndefined = attributes.allowUndefined || false;
+    const permittedValues = attributes.values || [];
+
+    const isValid = validityCheck(value, permittedType, permittedValues) ||
+      (allowUndefined && value === undefined);
+
+    if (isValid) {
+      return;
+    }
+
+    context.report({
+      node: attribute,
+      message: errorMessage(name, permittedType, permittedValues),
+    });
   },
+});
 
-  create: context => ({
-    JSXAttribute: attribute => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
-
-      // Not a valid aria-* state or property.
-      if (normalizedName.indexOf('ARIA-') !== 0 || ariaAttributes[normalizedName] === undefined) {
-        return;
-      }
-
-      const value = getLiteralPropValue(attribute);
-
-      // We only want to check literal prop values, so just pass if it's null.
-      if (value === null) {
-        return;
-      }
-
-      // These are the attributes of the property/state to check against.
-      const attributes = ariaAttributes[normalizedName];
-      const permittedType = attributes.type;
-      const allowUndefined = attributes.allowUndefined || false;
-      const permittedValues = attributes.values || [];
-
-      const isValid = validityCheck(value, permittedType, permittedValues) ||
-        (allowUndefined && value === undefined);
-
-      if (isValid) {
-        return;
-      }
-
-      context.report({
-        node: attribute,
-        message: errorMessage(name, permittedType, permittedValues),
-      });
-    },
-  }),
-};
+module.exports = createRule(rule);

@@ -3,34 +3,27 @@
  * @author Ethan Cohen
  */
 
+import { elementType } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { elementType } from 'jsx-ast-utils';
-
 const errorMessage =
   'Do not use <marquee> elements as they create accessibility issues and are deprecated.';
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXOpeningElement: node => {
+    const isMarquee = elementType(node) === 'marquee';
 
-    schema: [
-      { type: 'object' },
-    ],
+    if (isMarquee) {
+      context.report({
+        node,
+        message: errorMessage,
+      });
+    }
   },
+});
 
-  create: context => ({
-    JSXOpeningElement: node => {
-      const isMarquee = elementType(node) === 'marquee';
-
-      if (isMarquee) {
-        context.report({
-          node,
-          message: errorMessage,
-        });
-      }
-    },
-  }),
-};
+module.exports = createRule(rule);

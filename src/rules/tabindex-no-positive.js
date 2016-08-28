@@ -3,44 +3,37 @@
  * @author Ethan Cohen
  */
 
+import { getLiteralPropValue, propName } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getLiteralPropValue, propName } from 'jsx-ast-utils';
-
 const errorMessage = 'Avoid positive integer values for tabIndex.';
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXAttribute: attribute => {
+    const name = propName(attribute);
+    const normalizedName = name ? name.toUpperCase() : '';
 
-    schema: [
-      { type: 'object' },
-    ],
+    // Check if tabIndex is the attribute
+    if (normalizedName !== 'TABINDEX') {
+      return;
+    }
+
+    // Only check literals because we can't infer values from certain expressions.
+    const value = Number(getLiteralPropValue(attribute));
+
+    if (isNaN(value) || value <= 0) {
+      return;
+    }
+
+    context.report({
+      node: attribute,
+      message: errorMessage,
+    });
   },
+});
 
-  create: context => ({
-    JSXAttribute: attribute => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
-
-      // Check if tabIndex is the attribute
-      if (normalizedName !== 'TABINDEX') {
-        return;
-      }
-
-      // Only check literals because we can't infer values from certain expressions.
-      const value = Number(getLiteralPropValue(attribute));
-
-      if (isNaN(value) || value <= 0) {
-        return;
-      }
-
-      context.report({
-        node: attribute,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+module.exports = createRule(rule);

@@ -3,36 +3,29 @@
  * @author Ethan Cohen
  */
 
+import { getProp, getPropValue } from 'jsx-ast-utils';
+import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
-
-import { getProp, getPropValue } from 'jsx-ast-utils';
 
 const errorMessage = 'No access key attribute allowed. Inconsistencies ' +
   'between keyboard shortcuts and keyboard comments used by screenreader ' +
   'and keyboard only users create a11y complications.';
 
-module.exports = {
-  meta: {
-    docs: {},
+const rule = context => ({
+  JSXOpeningElement: node => {
+    const accessKey = getProp(node.attributes, 'accesskey');
+    const accessKeyValue = getPropValue(accessKey);
 
-    schema: [
-      { type: 'object' },
-    ],
+    if (accessKey && accessKeyValue) {
+      context.report({
+        node,
+        message: errorMessage,
+      });
+    }
   },
+});
 
-  create: context => ({
-    JSXOpeningElement: node => {
-      const accessKey = getProp(node.attributes, 'accesskey');
-      const accessKeyValue = getPropValue(accessKey);
-
-      if (accessKey && accessKeyValue) {
-        context.report({
-          node,
-          message: errorMessage,
-        });
-      }
-    },
-  }),
-};
+module.exports = createRule(rule);
