@@ -1,3 +1,27 @@
+ 3.0.0 / 2016-10-11
+==================
+- [breaking] - Update all rule schemas to accept objects. This allows a future schema expansion to not be a breaking change.
+- [breaking] - All rules with schemas that accepted a string OR array, now only allows an array.
+- [new] - `href-no-hash` accepts new schema property `specialLink` to check for custom `href` properties on elements. (fixes [#76](https://github.com/evcohen/eslint-plugin-jsx-a11y/issues/76))
+
+Note - see [rule documentation](https://github.com/evcohen/eslint-plugin-jsx-a11y/tree/master/docs/rules) for updated schemas.
+
+2.2.3 / 2016-10-08
+==================
+- [fix] - Add `switch` aria role.
+- [devDependencies] - Updgrade dev dependencies and fix linting issues.
+
+
+2.2.2 / 2016-09-12
+==================
+- [fix] `x-has-content` rules now pass with children prop set.
+
+
+2.2.1 / 2016-08-31
+==================
+- [fix] Update `tablist` role to include missing property `aria-multiselectable`.
+
+
 2.2.0 / 2016-08-26
 ==================
 - [new] Add `click-events-have-key-events` rule.

@@ -4,50 +4,57 @@
  * @author Ethan Cohen
  */
 
-import { elementType, propName } from 'jsx-ast-utils';
-import createRule from '../util/helpers/createRule';
-import DOM from '../util/attributes/DOM';
-import ARIA from '../util/attributes/ARIA';
-
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
+
+import { elementType, propName } from 'jsx-ast-utils';
+import { generateObjSchema } from '../util/schemas';
+import DOM from '../util/attributes/DOM.json';
+import ARIA from '../util/attributes/ARIA.json';
 
 const errorMessage = invalidProp =>
   `This element does not support ARIA roles, states and properties. \
 Try removing the prop '${invalidProp}'.`;
 
-const rule = context => ({
-  JSXOpeningElement: node => {
-    const nodeType = elementType(node);
-    const nodeAttrs = DOM[nodeType] || {};
-    const {
-      reserved: isReservedNodeType = false,
-    } = nodeAttrs;
+const schema = generateObjSchema();
 
-    // If it's not reserved, then it can have ARIA-* roles, states, and properties
-    if (isReservedNodeType === false) {
-      return;
-    }
+module.exports = {
+  meta: {
+    docs: {},
+    schema: [schema],
+  },
 
-    const invalidAttributes = Object.keys(ARIA).concat('ROLE');
+  create: context => ({
+    JSXOpeningElement: (node) => {
+      const nodeType = elementType(node);
+      const nodeAttrs = DOM[nodeType] || {};
+      const {
+        reserved: isReservedNodeType = false,
+      } = nodeAttrs;
 
-    node.attributes.forEach(prop => {
-      if (prop.type === 'JSXSpreadAttribute') {
+      // If it's not reserved, then it can have ARIA-* roles, states, and properties
+      if (isReservedNodeType === false) {
         return;
       }
 
-      const name = propName(prop);
-      const normalizedName = name ? name.toUpperCase() : '';
+      const invalidAttributes = Object.keys(ARIA).concat('ROLE');
 
-      if (invalidAttributes.indexOf(normalizedName) > -1) {
-        context.report({
-          node,
-          message: errorMessage(name),
-        });
-      }
-    });
-  },
-});
+      node.attributes.forEach((prop) => {
+        if (prop.type === 'JSXSpreadAttribute') {
+          return;
+        }
 
-module.exports = createRule(rule);
+        const name = propName(prop);
+        const normalizedName = name ? name.toUpperCase() : '';
+
+        if (invalidAttributes.indexOf(normalizedName) > -1) {
+          context.report({
+            node,
+            message: errorMessage(name),
+          });
+        }
+      });
+    },
+  }),
+};

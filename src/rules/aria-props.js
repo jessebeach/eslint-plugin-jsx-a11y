@@ -3,17 +3,16 @@
  * @author Ethan Cohen
  */
 
-import { propName } from 'jsx-ast-utils';
-import createRule from '../util/helpers/createRule';
-import ariaAttributes from '../util/attributes/ARIA';
-import getSuggestion from '../util/getSuggestion';
-
-
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-const errorMessage = name => {
+import { propName } from 'jsx-ast-utils';
+import { generateObjSchema } from '../util/schemas';
+import ariaAttributes from '../util/attributes/ARIA.json';
+import getSuggestion from '../util/getSuggestion';
+
+const errorMessage = (name) => {
   const dictionary = Object.keys(ariaAttributes).map(aria => aria.toLowerCase());
   const suggestions = getSuggestion(name, dictionary);
   const message = `${name}: This attribute is an invalid ARIA attribute.`;
@@ -25,25 +24,32 @@ const errorMessage = name => {
   return message;
 };
 
-const rule = context => ({
-  JSXAttribute: attribute => {
-    const name = propName(attribute);
-    const normalizedName = name ? name.toUpperCase() : '';
+const schema = generateObjSchema();
 
-    // `aria` needs to be prefix of property.
-    if (normalizedName.indexOf('ARIA-') !== 0) {
-      return;
-    }
-
-    const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
-
-    if (isValid === false) {
-      context.report({
-        node: attribute,
-        message: errorMessage(name),
-      });
-    }
+module.exports = {
+  meta: {
+    docs: {},
+    schema: [schema],
   },
-});
 
-module.exports = createRule(rule);
+  create: context => ({
+    JSXAttribute: (attribute) => {
+      const name = propName(attribute);
+      const normalizedName = name ? name.toUpperCase() : '';
+
+      // `aria` needs to be prefix of property.
+      if (normalizedName.indexOf('ARIA-') !== 0) {
+        return;
+      }
+
+      const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
+
+      if (isValid === false) {
+        context.report({
+          node: attribute,
+          message: errorMessage(name),
+        });
+      }
+    },
+  }),
+};

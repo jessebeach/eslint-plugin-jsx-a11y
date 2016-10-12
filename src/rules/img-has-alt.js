@@ -3,79 +3,68 @@
  * @author Ethan Cohen
  */
 
-import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
-import createRule from '../util/helpers/createRule';
-
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-const rule = context => ({
-  JSXOpeningElement: node => {
-    const typeCheck = ['img'].concat(context.options[0]);
-    const nodeType = elementType(node);
+import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
+import { generateObjSchema, arraySchema } from '../util/schemas';
 
-    // Only check 'img' elements and custom types.
-    if (typeCheck.indexOf(nodeType) === -1) {
-      return;
-    }
+const schema = generateObjSchema({ components: arraySchema });
 
-    const roleProp = getProp(node.attributes, 'role');
-    const roleValue = getPropValue(roleProp);
-    const isPresentation = roleProp && typeof roleValue === 'string'
-      && roleValue.toLowerCase() === 'presentation';
+module.exports = {
+  meta: {
+    docs: {},
+    schema: [schema],
+  },
 
-    if (isPresentation) {
-      return;
-    }
+  create: context => ({
+    JSXOpeningElement: (node) => {
+      const options = context.options[0] || {};
+      const componentOptions = options.components || [];
+      const typesToValidate = ['img'].concat(componentOptions);
+      const nodeType = elementType(node);
 
-    const altProp = getProp(node.attributes, 'alt');
+      // Only check 'img' elements and custom types.
+      if (typesToValidate.indexOf(nodeType) === -1) {
+        return;
+      }
 
-    // Missing alt prop error.
-    if (altProp === undefined) {
+      const roleProp = getProp(node.attributes, 'role');
+      const roleValue = getPropValue(roleProp);
+      const isPresentation = roleProp && typeof roleValue === 'string'
+        && roleValue.toLowerCase() === 'presentation';
+
+      if (isPresentation) {
+        return;
+      }
+
+      const altProp = getProp(node.attributes, 'alt');
+
+      // Missing alt prop error.
+      if (altProp === undefined) {
+        context.report({
+          node,
+          message: `${nodeType} elements must have an alt prop or use role="presentation".`,
+        });
+        return;
+      }
+
+      // Check if alt prop is undefined.
+      const altValue = getPropValue(altProp);
+      const isNullValued = altProp.value === null; // <img alt />
+
+      if ((altValue && !isNullValued) || altValue === '') {
+        return;
+      }
+
+      // Undefined alt prop error.
       context.report({
         node,
-        message: `${nodeType} elements must have an alt prop or use role="presentation".`,
-      });
-      return;
-    }
-
-    // Check if alt prop is undefined.
-    const altValue = getPropValue(altProp);
-    const isNullValued = altProp.value === null; // <img alt />
-
-    if ((altValue && !isNullValued) || altValue === '') {
-      return;
-    }
-
-    // Undefined alt prop error.
-    context.report({
-      node,
-      message:
-        `Invalid alt value for ${nodeType}. \
+        message:
+          `Invalid alt value for ${nodeType}. \
 Use alt="" or role="presentation" for presentational images.`,
-    });
-  },
-});
-
-const meta = {
-  docs: {},
-
-  schema: [
-    {
-      oneOf: [
-        { type: 'string' },
-        {
-          type: 'array',
-          items: {
-            type: 'string',
-          },
-          minItems: 1,
-          uniqueItems: true,
-        },
-      ],
+      });
     },
-  ],
+  }),
 };
-
-module.exports = createRule(rule, meta);

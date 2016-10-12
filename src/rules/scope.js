@@ -3,39 +3,46 @@
  * @author Ethan Cohen
  */
 
-import { propName, elementType } from 'jsx-ast-utils';
-import DOMElements from '../util/attributes/DOM';
-import createRule from '../util/helpers/createRule';
-
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
+import { propName, elementType } from 'jsx-ast-utils';
+import { generateObjSchema } from '../util/schemas';
+import DOMElements from '../util/attributes/DOM.json';
+
 const errorMessage = 'The scope prop can only be used on <th> elements.';
 
-const rule = context => ({
-  JSXAttribute: node => {
-    const name = propName(node);
-    if (name && name.toUpperCase() !== 'SCOPE') {
-      return;
-    }
+const schema = generateObjSchema();
 
-    const { parent } = node;
-    const tagName = elementType(parent);
-
-    // Do not test higher level JSX components, as we do not know what
-    // low-level DOM element this maps to.
-    if (Object.keys(DOMElements).indexOf(tagName) === -1) {
-      return;
-    } else if (tagName && tagName.toUpperCase() === 'TH') {
-      return;
-    }
-
-    context.report({
-      node,
-      message: errorMessage,
-    });
+module.exports = {
+  meta: {
+    docs: {},
+    schema: [schema],
   },
-});
 
-module.exports = createRule(rule);
+  create: context => ({
+    JSXAttribute: (node) => {
+      const name = propName(node);
+      if (name && name.toUpperCase() !== 'SCOPE') {
+        return;
+      }
+
+      const { parent } = node;
+      const tagName = elementType(parent);
+
+      // Do not test higher level JSX components, as we do not know what
+      // low-level DOM element this maps to.
+      if (Object.keys(DOMElements).indexOf(tagName) === -1) {
+        return;
+      } else if (tagName && tagName.toUpperCase() === 'TH') {
+        return;
+      }
+
+      context.report({
+        node,
+        message: errorMessage,
+      });
+    },
+  }),
+};

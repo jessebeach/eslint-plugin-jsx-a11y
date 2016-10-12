@@ -3,56 +3,53 @@
  * @author Ethan Cohen
  */
 
-import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
-import createRule from '../util/helpers/createRule';
-
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
+import { getProp, getPropValue, elementType } from 'jsx-ast-utils';
+import { generateObjSchema, arraySchema } from '../util/schemas';
+
 const errorMessage = 'Links must not point to "#". ' +
   'Use a more descriptive href or use a button instead.';
 
-const rule = context => ({
-  JSXOpeningElement: node => {
-    const typeCheck = ['a'].concat(context.options[0]);
-    const nodeType = elementType(node);
-
-    // Only check 'a' elements and custom types.
-    if (typeCheck.indexOf(nodeType) === -1) {
-      return;
-    }
-
-    const href = getProp(node.attributes, 'href');
-    const value = getPropValue(href);
-
-    if (href && value === '#') {
-      context.report({
-        node,
-        message: errorMessage,
-      });
-    }
-  },
+const schema = generateObjSchema({
+  components: arraySchema,
+  specialLink: arraySchema,
 });
 
-const meta = {
-  docs: {},
+module.exports = {
+  meta: {
+    docs: {},
+    schema: [schema],
+  },
 
-  schema: [
-    {
-      oneOf: [
-        { type: 'string' },
-        {
-          type: 'array',
-          items: {
-            type: 'string',
-          },
-          minItems: 1,
-          uniqueItems: true,
-        },
-      ],
+  create: context => ({
+    JSXOpeningElement: (node) => {
+      const options = context.options[0] || {};
+      const componentOptions = options.components || [];
+      const typesToValidate = ['a'].concat(componentOptions);
+      const nodeType = elementType(node);
+
+      // Only check 'a' elements and custom types.
+      if (typesToValidate.indexOf(nodeType) === -1) {
+        return;
+      }
+
+      const propOptions = options.specialLink || [];
+      const propsToValidate = ['href'].concat(propOptions);
+      const values = propsToValidate
+        .map(prop => getProp(node.attributes, prop))
+        .map(prop => getPropValue(prop));
+
+      values.forEach((value) => {
+        if (value === '#') {
+          context.report({
+            node,
+            message: errorMessage,
+          });
+        }
+      });
     },
-  ],
+  }),
 };
-
-module.exports = createRule(rule, meta);
