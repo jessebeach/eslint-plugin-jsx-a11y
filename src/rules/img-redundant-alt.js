@@ -3,74 +3,70 @@
  * @author Ethan Cohen
  */
 
+ import { getProp, getLiteralPropValue, elementType } from 'jsx-ast-utils';
+ import { generateObjSchema, arraySchema } from '../util/schemas';
+ import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, getLiteralPropValue, elementType } from 'jsx-ast-utils';
-import { generateObjSchema, arraySchema } from '../util/schemas';
-import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
+ const schema = generateObjSchema({
+   components: arraySchema,
+   words: arraySchema,
+ });
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const REDUNDANT_WORDS = [
-  'image',
-  'photo',
-  'picture',
-];
-
-const errorMessage = 'Redundant alt attribute. Screen-readers already announce ' +
+ const errorMessage = 'Redundant alt attribute. Screen-readers already announce ' +
   '`img` tags as an image. You don\'t need to use the words `image`, ' +
   '`photo,` or `picture` (or any specified custom words) in the alt prop.';
 
-const schema = generateObjSchema({
-  components: arraySchema,
-  words: arraySchema,
-});
+ const REDUNDANT_WORDS = ['image', 'photo', 'picture'];
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+     const options = context.options[0] || {};
+     const componentOptions = options.components || [];
+     const typesToValidate = ['img'].concat(componentOptions);
+     const nodeType = elementType(node);
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      const options = context.options[0] || {};
-      const componentOptions = options.components || [];
-      const typesToValidate = ['img'].concat(componentOptions);
-      const nodeType = elementType(node);
+    // Only check 'label' elements and custom types.
+     if (typesToValidate.indexOf(nodeType) === -1) {
+       return;
+     }
 
-      // Only check 'label' elements and custom types.
-      if (typesToValidate.indexOf(nodeType) === -1) {
-        return;
-      }
+     const altProp = getProp(node.attributes, 'alt');
+    // Return if alt prop is not present.
+     if (altProp === undefined) {
+       return;
+     }
 
-      const altProp = getProp(node.attributes, 'alt');
-      // Return if alt prop is not present.
-      if (altProp === undefined) {
-        return;
-      }
+     const value = getLiteralPropValue(altProp);
+     const isVisible = isHiddenFromScreenReader(nodeType, node.attributes) === false;
 
-      const value = getLiteralPropValue(altProp);
-      const isVisible = isHiddenFromScreenReader(nodeType, node.attributes) === false;
+     const {
+      words = [],
+    } = options;
+     const redundantWords = REDUNDANT_WORDS.concat(words);
 
-      const {
-        words = [],
-      } = options;
-      const redundantWords = REDUNDANT_WORDS.concat(words);
+     if (typeof value === 'string' && isVisible) {
+       const hasRedundancy = redundantWords
+        .some(word => Boolean(value.match(new RegExp(`(?!{)${word}(?!})`, 'gi'))));
 
-      if (typeof value === 'string' && isVisible) {
-        const hasRedundancy = redundantWords
-          .some(word => Boolean(value.match(new RegExp(`(?!{)${word}(?!})`, 'gi'))));
+       if (hasRedundancy === true) {
+         context.report({
+           node,
+           message: errorMessage,
+         });
+       }
 
-        if (hasRedundancy === true) {
-          context.report({
-            node,
-            message: errorMessage,
-          });
-        }
+       return;
+     }
+   },
+ });
 
-        return;
-      }
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

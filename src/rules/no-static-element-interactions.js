@@ -3,52 +3,52 @@
  * @author Ethan Cohen
  */
 
+ import { hasAnyProp, elementType } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
+ import isInteractiveElement from '../util/isInteractiveElement';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { hasAnyProp, elementType } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
-import isInteractiveElement from '../util/isInteractiveElement';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage =
+ const errorMessage =
   'Visible, non-interactive elements should not have mouse or keyboard event listeners';
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+     const props = node.attributes;
+     const type = elementType(node);
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     const interactiveProps = [
+       'onclick',
+       'ondblclick',
+       'onkeydown',
+       'onkeyup',
+       'onkeypress',
+     ];
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      const props = node.attributes;
-      const type = elementType(node);
+     if (isHiddenFromScreenReader(type, props)) {
+       return;
+     } else if (isInteractiveElement(type, props)) {
+       return;
+     } else if (hasAnyProp(props, interactiveProps) === false) {
+       return;
+     }
 
-      const interactiveProps = [
-        'onclick',
-        'ondblclick',
-        'onkeydown',
-        'onkeyup',
-        'onkeypress',
-      ];
+    // Visible, non-interactive elements should not have an interactive handler.
+     context.report({
+       node,
+       message: errorMessage,
+     });
+   },
+ });
 
-      if (isHiddenFromScreenReader(type, props)) {
-        return;
-      } else if (isInteractiveElement(type, props)) {
-        return;
-      } else if (hasAnyProp(props, interactiveProps) === false) {
-        return;
-      }
-
-      // Visible, non-interactive elements should not have an interactive handler.
-      context.report({
-        node,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

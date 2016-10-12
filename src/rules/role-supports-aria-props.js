@@ -4,68 +4,68 @@
  * @author Ethan Cohen
  */
 
+ import { getProp, getLiteralPropValue, elementType, propName } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import ROLES from '../util/attributes/role.json';
+ import ARIA from '../util/attributes/ARIA.json';
+ import getImplicitRole from '../util/getImplicitRole';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, getLiteralPropValue, elementType, propName } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import ROLES from '../util/attributes/role.json';
-import ARIA from '../util/attributes/ARIA.json';
-import getImplicitRole from '../util/getImplicitRole';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = (attr, role, tag, isImplicit) => {
-  if (isImplicit) {
-    return `The attribute ${attr} is not supported by the role ${role}. \
+ const errorMessage = (attr, role, tag, isImplicit) => {
+   if (isImplicit) {
+     return `The attribute ${attr} is not supported by the role ${role}. \
 This role is implicit on the element ${tag}.`;
-  }
+   }
 
-  return `The attribute ${attr} is not supported by the role ${role}.`;
-};
+   return `The attribute ${attr} is not supported by the role ${role}.`;
+ };
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+    // If role is not explicitly defined, then try and get its implicit role.
+     const type = elementType(node);
+     const role = getProp(node.attributes, 'role');
+     const roleValue = role ? getLiteralPropValue(role) : getImplicitRole(type, node.attributes);
+     const isImplicit = roleValue && role === undefined;
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+    // If there is no explicit or implicit role, then assume that the element
+    // can handle the global set of aria-* properties.
+    // This actually isn't true - should fix in future release.
+     if (typeof roleValue !== 'string' || ROLES[roleValue.toUpperCase()] === undefined) {
+       return;
+     }
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      // If role is not explicitly defined, then try and get its implicit role.
-      const type = elementType(node);
-      const role = getProp(node.attributes, 'role');
-      const roleValue = role ? getLiteralPropValue(role) : getImplicitRole(type, node.attributes);
-      const isImplicit = roleValue && role === undefined;
+    // Make sure it has no aria-* properties defined outside of its property set.
+     const propertySet = ROLES[roleValue.toUpperCase()].props;
+     const invalidAriaPropsForRole = Object.keys(ARIA)
+      .filter(attribute => propertySet.indexOf(attribute) === -1);
 
-      // If there is no explicit or implicit role, then assume that the element
-      // can handle the global set of aria-* properties.
-      // This actually isn't true - should fix in future release.
-      if (typeof roleValue !== 'string' || ROLES[roleValue.toUpperCase()] === undefined) {
-        return;
-      }
+     node.attributes.forEach((prop) => {
+       if (prop.type === 'JSXSpreadAttribute') {
+         return;
+       }
 
-      // Make sure it has no aria-* properties defined outside of its property set.
-      const propertySet = ROLES[roleValue.toUpperCase()].props;
-      const invalidAriaPropsForRole = Object.keys(ARIA)
-        .filter(attribute => propertySet.indexOf(attribute) === -1);
+       const name = propName(prop);
+       const normalizedName = name ? name.toUpperCase() : '';
 
-      node.attributes.forEach((prop) => {
-        if (prop.type === 'JSXSpreadAttribute') {
-          return;
-        }
+       if (invalidAriaPropsForRole.indexOf(normalizedName) > -1) {
+         context.report({
+           node,
+           message: errorMessage(name, roleValue, type, isImplicit),
+         });
+       }
+     });
+   },
+ });
 
-        const name = propName(prop);
-        const normalizedName = name ? name.toUpperCase() : '';
-
-        if (invalidAriaPropsForRole.indexOf(normalizedName) > -1) {
-          context.report({
-            node,
-            message: errorMessage(name, roleValue, type, isImplicit),
-          });
-        }
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

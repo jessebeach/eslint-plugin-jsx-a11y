@@ -3,65 +3,65 @@
  * @author Ethan Cohen
  */
 
+ import { propName, elementType, getLiteralPropValue } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import ISO_CODES from '../util/attributes/ISO.json';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { propName, elementType, getLiteralPropValue } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import ISO_CODES from '../util/attributes/ISO.json';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage =
+ const errorMessage =
   'lang attribute must have a valid value.';
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXAttribute: (node) => {
+     const name = propName(node);
+     if (name && name.toUpperCase() !== 'LANG') {
+       return;
+     }
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     const { parent } = node;
+     const type = elementType(parent);
+     if (type && type !== 'html') {
+       return;
+     }
 
-  create: context => ({
-    JSXAttribute: (node) => {
-      const name = propName(node);
-      if (name && name.toUpperCase() !== 'LANG') {
-        return;
-      }
+     const value = getLiteralPropValue(node);
 
-      const { parent } = node;
-      const type = elementType(parent);
-      if (type && type !== 'html') {
-        return;
-      }
+    // Don't check identifiers
+     if (value === null) {
+       return;
+     } else if (value === undefined) {
+       context.report({
+         node,
+         message: errorMessage,
+       });
 
-      const value = getLiteralPropValue(node);
+       return;
+     }
 
-      // Don't check identifiers
-      if (value === null) {
-        return;
-      } else if (value === undefined) {
-        context.report({
-          node,
-          message: errorMessage,
-        });
+     const hyphen = value.indexOf('-');
+     const lang = hyphen > -1 ? value.substring(0, hyphen) : value;
+     const country = hyphen > -1 ? value.substring(3) : undefined;
 
-        return;
-      }
+     if (ISO_CODES.languages.indexOf(lang) > -1
+      && (country === undefined || ISO_CODES.countries.indexOf(country) > -1)) {
+       return;
+     }
 
-      const hyphen = value.indexOf('-');
-      const lang = hyphen > -1 ? value.substring(0, hyphen) : value;
-      const country = hyphen > -1 ? value.substring(3) : undefined;
+     context.report({
+       node,
+       message: errorMessage,
+     });
+   },
+ });
 
-      if (ISO_CODES.languages.indexOf(lang) > -1
-        && (country === undefined || ISO_CODES.countries.indexOf(country) > -1)) {
-        return;
-      }
-
-      context.report({
-        node,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

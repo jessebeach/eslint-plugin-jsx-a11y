@@ -3,53 +3,53 @@
  * @author Ethan Cohen
  */
 
+ import { propName } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import ariaAttributes from '../util/attributes/ARIA.json';
+ import getSuggestion from '../util/getSuggestion';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { propName } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import ariaAttributes from '../util/attributes/ARIA.json';
-import getSuggestion from '../util/getSuggestion';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = (name) => {
-  const dictionary = Object.keys(ariaAttributes).map(aria => aria.toLowerCase());
-  const suggestions = getSuggestion(name, dictionary);
-  const message = `${name}: This attribute is an invalid ARIA attribute.`;
+ const errorMessage = (name) => {
+   const dictionary = Object.keys(ariaAttributes).map(aria => aria.toLowerCase());
+   const suggestions = getSuggestion(name, dictionary);
+   const message = `${name}: This attribute is an invalid ARIA attribute.`;
 
-  if (suggestions.length > 0) {
-    return `${message} Did you mean to use ${suggestions}?`;
-  }
+   if (suggestions.length > 0) {
+     return `${message} Did you mean to use ${suggestions}?`;
+   }
 
-  return message;
-};
+   return message;
+ };
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXAttribute: (attribute) => {
+     const name = propName(attribute);
+     const normalizedName = name ? name.toUpperCase() : '';
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+    // `aria` needs to be prefix of property.
+     if (normalizedName.indexOf('ARIA-') !== 0) {
+       return;
+     }
 
-  create: context => ({
-    JSXAttribute: (attribute) => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
+     const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
 
-      // `aria` needs to be prefix of property.
-      if (normalizedName.indexOf('ARIA-') !== 0) {
-        return;
-      }
+     if (isValid === false) {
+       context.report({
+         node: attribute,
+         message: errorMessage(name),
+       });
+     }
+   },
+ });
 
-      const isValid = Object.keys(ariaAttributes).indexOf(normalizedName) > -1;
-
-      if (isValid === false) {
-        context.report({
-          node: attribute,
-          message: errorMessage(name),
-        });
-      }
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

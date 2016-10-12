@@ -3,41 +3,41 @@
  * @author Ethan Cohen
  */
 
+ import { elementType, getProp, getPropValue } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { elementType, getProp, getPropValue } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = '<html> elements must have the lang prop.';
+ const errorMessage = '<html> elements must have the lang prop.';
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+     const type = elementType(node);
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     if (type && type !== 'html') {
+       return;
+     }
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      const type = elementType(node);
+     const lang = getPropValue(getProp(node.attributes, 'lang'));
 
-      if (type && type !== 'html') {
-        return;
-      }
+     if (lang) {
+       return;
+     }
 
-      const lang = getPropValue(getProp(node.attributes, 'lang'));
+     context.report({
+       node,
+       message: errorMessage,
+     });
+   },
+ });
 
-      if (lang) {
-        return;
-      }
-
-      context.report({
-        node,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

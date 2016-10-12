@@ -3,49 +3,50 @@
  * @author Ethan Cohen
  */
 
+ import { getProp, hasAnyProp, elementType } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
+ import isInteractiveElement from '../util/isInteractiveElement';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, hasAnyProp, elementType } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import isHiddenFromScreenReader from '../util/isHiddenFromScreenReader';
-import isInteractiveElement from '../util/isInteractiveElement';
 
-const errorMessage = 'Visible, non-interactive elements with click handlers' +
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
+
+ const errorMessage = 'Visible, non-interactive elements with click handlers' +
 ' must have at least one keyboard listener.';
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+     const props = node.attributes;
+     if (getProp(props, 'onclick') === undefined) {
+       return;
+     }
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     const type = elementType(node);
+     const requiredProps = ['onkeydown', 'onkeyup', 'onkeypress'];
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      const props = node.attributes;
-      if (getProp(props, 'onclick') === undefined) {
-        return;
-      }
+     if (isHiddenFromScreenReader(type, props)) {
+       return;
+     } else if (isInteractiveElement(type, props)) {
+       return;
+     } else if (hasAnyProp(props, requiredProps)) {
+       return;
+     }
 
-      const type = elementType(node);
-      const requiredProps = ['onkeydown', 'onkeyup', 'onkeypress'];
+    // Visible, non-interactive elements with click handlers require one keyboard event listener.
+     context.report({
+       node,
+       message: errorMessage,
+     });
+   },
+ });
 
-      if (isHiddenFromScreenReader(type, props)) {
-        return;
-      } else if (isInteractiveElement(type, props)) {
-        return;
-      } else if (hasAnyProp(props, requiredProps)) {
-        return;
-      }
-
-      // Visible, non-interactive elements with click handlers require one keyboard event listener.
-      context.report({
-        node,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

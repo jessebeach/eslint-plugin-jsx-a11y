@@ -4,63 +4,63 @@
  * @author Ethan Cohen
  */
 
+ import { getProp, getLiteralPropValue, propName } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import validRoleTypes from '../util/attributes/role.json';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, getLiteralPropValue, propName } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import validRoleTypes from '../util/attributes/role.json';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = (role, requiredProps) =>
+ const errorMessage = (role, requiredProps) =>
   `Elements with the ARIA role "${role}" must have the following ` +
   `attributes defined: ${String(requiredProps).toLowerCase()}`;
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXAttribute: (attribute) => {
+     const name = propName(attribute);
+     const normalizedName = name ? name.toUpperCase() : '';
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     if (normalizedName !== 'ROLE') {
+       return;
+     }
 
-  create: context => ({
-    JSXAttribute: (attribute) => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
+     const value = getLiteralPropValue(attribute);
 
-      if (normalizedName !== 'ROLE') {
-        return;
-      }
+    // If value is undefined, then the role attribute will be dropped in the DOM.
+    // If value is null, then getLiteralAttributeValue is telling us
+    // that the value isn't in the form of a literal.
+     if (value === undefined || value === null) {
+       return;
+     }
 
-      const value = getLiteralPropValue(attribute);
+     const normalizedValues = String(value).toUpperCase().split(' ');
+     const validRoles = normalizedValues
+      .filter(val => Object.keys(validRoleTypes).indexOf(val) > -1);
 
-      // If value is undefined, then the role attribute will be dropped in the DOM.
-      // If value is null, then getLiteralAttributeValue is telling us
-      // that the value isn't in the form of a literal.
-      if (value === undefined || value === null) {
-        return;
-      }
+     validRoles.forEach((role) => {
+       const { requiredProps } = validRoleTypes[role];
 
-      const normalizedValues = String(value).toUpperCase().split(' ');
-      const validRoles = normalizedValues
-        .filter(val => Object.keys(validRoleTypes).indexOf(val) > -1);
+       if (requiredProps.length > 0) {
+         const hasRequiredProps = requiredProps
+          .every(prop => getProp(attribute.parent.attributes, prop));
 
-      validRoles.forEach((role) => {
-        const { requiredProps } = validRoleTypes[role];
+         if (hasRequiredProps === false) {
+           context.report({
+             node: attribute,
+             message: errorMessage(role.toLowerCase(), requiredProps),
+           });
+         }
+       }
+     });
+   },
+ });
 
-        if (requiredProps.length > 0) {
-          const hasRequiredProps = requiredProps
-            .every(prop => getProp(attribute.parent.attributes, prop));
-
-          if (hasRequiredProps === false) {
-            context.report({
-              node: attribute,
-              message: errorMessage(role.toLowerCase(), requiredProps),
-            });
-          }
-        }
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

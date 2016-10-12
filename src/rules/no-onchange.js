@@ -3,47 +3,44 @@
  * @author Ethan Cohen
  */
 
+ import { getProp, elementType } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getProp, elementType } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = 'onBlur must be used instead of onchange, ' +
+ const errorMessage = 'onBlur must be used instead of onchange, ' +
   'unless absolutely necessary and it causes no negative consequences ' +
   'for keyboard only or screen reader users.';
 
-const applicableTypes = [
-  'select',
-  'option',
-];
+ const applicableTypes = ['select', 'option'];
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXOpeningElement: (node) => {
+     const nodeType = elementType(node);
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+     if (applicableTypes.indexOf(nodeType) === -1) {
+       return;
+     }
 
-  create: context => ({
-    JSXOpeningElement: (node) => {
-      const nodeType = elementType(node);
+     const onChange = getProp(node.attributes, 'onChange');
+     const hasOnBlur = getProp(node.attributes, 'onBlur') !== undefined;
 
-      if (applicableTypes.indexOf(nodeType) === -1) {
-        return;
-      }
+     if (onChange && !hasOnBlur) {
+       context.report({
+         node,
+         message: errorMessage,
+       });
+     }
+   },
+ });
 
-      const onChange = getProp(node.attributes, 'onChange');
-      const hasOnBlur = getProp(node.attributes, 'onBlur') !== undefined;
-
-      if (onChange && !hasOnBlur) {
-        context.report({
-          node,
-          message: errorMessage,
-        });
-      }
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

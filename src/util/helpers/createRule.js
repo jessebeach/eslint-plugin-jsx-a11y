@@ -1,24 +1,25 @@
+import RuleContext from 'eslint/lib/rule-context';
 import assign from 'object-assign';
 import defaultGlobalSettings from '../../defaultGlobalSettings.json';
 
-const DEFAULT_META = {
-  docs: {},
-
-  schema: [
-    { type: 'object' },
-  ],
-};
-
 export default function createRule(rule, meta = {}) {
   return {
-    meta: assign({}, DEFAULT_META, meta),
+    meta,
 
-    create: context => {
+    create: (context) => {
       const settings = assign({}, defaultGlobalSettings, context.settings);
-      const ctx = assign({}, context, { settings });
-      ctx.prototype = assign({}, context.prototype);
+      const ctx = new RuleContext(
+        context.id,
+        context.eslint,
+        context.severity,
+        context.options,
+        settings,
+        context.parserOptions,
+        context.parserPath,
+        context.meta
+      );
 
-      return rule(context);
+      return rule(ctx);
     },
   };
 }

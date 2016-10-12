@@ -3,96 +3,96 @@
  * @author Ethan Cohen
  */
 
+ import { getLiteralPropValue, propName } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import ariaAttributes from '../util/attributes/ARIA.json';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getLiteralPropValue, propName } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
-import ariaAttributes from '../util/attributes/ARIA.json';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = (name, type, permittedValues) => {
-  switch (type) {
-    case 'tristate':
-      return `The value for ${name} must be a boolean or the string "mixed".`;
-    case 'token':
-      return `The value for ${name} must be a single token from the following: ${permittedValues}.`;
-    case 'tokenlist':
-      return `The value for ${name} must be a list of one or more \
+ const errorMessage = (name, type, permittedValues) => {
+   switch (type) {
+     case 'tristate':
+       return `The value for ${name} must be a boolean or the string "mixed".`;
+     case 'token':
+       return `The value for ${name} must be a single token from the following: ${permittedValues}.`;
+     case 'tokenlist':
+       return `The value for ${name} must be a list of one or more \
 tokens from the following: ${permittedValues}.`;
-    case 'boolean':
-    case 'string':
-    case 'integer':
-    case 'number':
-    default:
-      return `The value for ${name} must be a ${type}.`;
-  }
-};
+     case 'boolean':
+     case 'string':
+     case 'integer':
+     case 'number':
+     default:
+       return `The value for ${name} must be a ${type}.`;
+   }
+ };
 
-const validityCheck = (value, expectedType, permittedValues) => {
-  switch (expectedType) {
-    case 'boolean':
-      return typeof value === 'boolean';
-    case 'string':
-      return typeof value === 'string';
-    case 'tristate':
-      return typeof value === 'boolean' || value === 'mixed';
-    case 'integer':
-    case 'number':
+ const validityCheck = (value, expectedType, permittedValues) => {
+   switch (expectedType) {
+     case 'boolean':
+       return typeof value === 'boolean';
+     case 'string':
+       return typeof value === 'string';
+     case 'tristate':
+       return typeof value === 'boolean' || value === 'mixed';
+     case 'integer':
+     case 'number':
       // Booleans resolve to 0/1 values so hard check that it's not first.
-      return typeof value !== 'boolean' && isNaN(Number(value)) === false;
-    case 'token':
-      return typeof value === 'string' && permittedValues.indexOf(value.toLowerCase()) > -1;
-    case 'tokenlist':
-      return typeof value === 'string' &&
+       return typeof value !== 'boolean' && isNaN(Number(value)) === false;
+     case 'token':
+       return typeof value === 'string' && permittedValues.indexOf(value.toLowerCase()) > -1;
+     case 'tokenlist':
+       return typeof value === 'string' &&
         value.split(' ').every(token => permittedValues.indexOf(token.toLowerCase()) > -1);
-    default:
-      return false;
-  }
-};
+     default:
+       return false;
+   }
+ };
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXAttribute: (attribute) => {
+     const name = propName(attribute);
+     const normalizedName = name ? name.toUpperCase() : '';
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+    // Not a valid aria-* state or property.
+     if (normalizedName.indexOf('ARIA-') !== 0 || ariaAttributes[normalizedName] === undefined) {
+       return;
+     }
 
-  create: context => ({
-    JSXAttribute: (attribute) => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
+     const value = getLiteralPropValue(attribute);
 
-      // Not a valid aria-* state or property.
-      if (normalizedName.indexOf('ARIA-') !== 0 || ariaAttributes[normalizedName] === undefined) {
-        return;
-      }
+    // We only want to check literal prop values, so just pass if it's null.
+     if (value === null) {
+       return;
+     }
 
-      const value = getLiteralPropValue(attribute);
+    // These are the attributes of the property/state to check against.
+     const attributes = ariaAttributes[normalizedName];
+     const permittedType = attributes.type;
+     const allowUndefined = attributes.allowUndefined || false;
+     const permittedValues = attributes.values || [];
 
-      // We only want to check literal prop values, so just pass if it's null.
-      if (value === null) {
-        return;
-      }
+     const isValid = validityCheck(value, permittedType, permittedValues) ||
+      (allowUndefined && value === undefined);
 
-      // These are the attributes of the property/state to check against.
-      const attributes = ariaAttributes[normalizedName];
-      const permittedType = attributes.type;
-      const allowUndefined = attributes.allowUndefined || false;
-      const permittedValues = attributes.values || [];
+     if (isValid) {
+       return;
+     }
 
-      const isValid = validityCheck(value, permittedType, permittedValues) ||
-        (allowUndefined && value === undefined);
+     context.report({
+       node: attribute,
+       message: errorMessage(name, permittedType, permittedValues),
+     });
+   },
+ });
 
-      if (isValid) {
-        return;
-      }
-
-      context.report({
-        node: attribute,
-        message: errorMessage(name, permittedType, permittedValues),
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);

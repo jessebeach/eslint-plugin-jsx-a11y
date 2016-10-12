@@ -3,44 +3,44 @@
  * @author Ethan Cohen
  */
 
+ import { getLiteralPropValue, propName } from 'jsx-ast-utils';
+ import { generateObjSchema } from '../util/schemas';
+ import createRule from '../util/helpers/createRule';
+
 // ----------------------------------------------------------------------------
 // Rule Definition
 // ----------------------------------------------------------------------------
 
-import { getLiteralPropValue, propName } from 'jsx-ast-utils';
-import { generateObjSchema } from '../util/schemas';
+ const schema = generateObjSchema();
+ const meta = {
+   docs: {},
+   schema: [schema],
+ };
 
-const errorMessage = 'Avoid positive integer values for tabIndex.';
+ const errorMessage = 'Avoid positive integer values for tabIndex.';
 
-const schema = generateObjSchema();
+ const rule = context => ({
+   JSXAttribute: (attribute) => {
+     const name = propName(attribute);
+     const normalizedName = name ? name.toUpperCase() : '';
 
-module.exports = {
-  meta: {
-    docs: {},
-    schema: [schema],
-  },
+    // Check if tabIndex is the attribute
+     if (normalizedName !== 'TABINDEX') {
+       return;
+     }
 
-  create: context => ({
-    JSXAttribute: (attribute) => {
-      const name = propName(attribute);
-      const normalizedName = name ? name.toUpperCase() : '';
+    // Only check literals because we can't infer values from certain expressions.
+     const value = Number(getLiteralPropValue(attribute));
 
-      // Check if tabIndex is the attribute
-      if (normalizedName !== 'TABINDEX') {
-        return;
-      }
+     if (isNaN(value) || value <= 0) {
+       return;
+     }
 
-      // Only check literals because we can't infer values from certain expressions.
-      const value = Number(getLiteralPropValue(attribute));
+     context.report({
+       node: attribute,
+       message: errorMessage,
+     });
+   },
+ });
 
-      if (isNaN(value) || value <= 0) {
-        return;
-      }
-
-      context.report({
-        node: attribute,
-        message: errorMessage,
-      });
-    },
-  }),
-};
+ module.exports = createRule(rule, meta);
