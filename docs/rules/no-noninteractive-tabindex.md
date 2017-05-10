@@ -46,6 +46,10 @@ It is not necessary to put a tabindex on an `<article>`, for instance or on `<li
 
 Your application might require an exception to this rule in the case of an element that captures incoming tab traversal for a composite widget. In that case, turn off this rule on a per instance basis. This is an uncommon case.
 
+### Case: I need to focus a container, like a dialog because it does not contain any tabbable content
+
+In the case that you need to move focus to an element like a dialog when it opens, but the dialog does not contain any tabbable or focusable content, you may focus the dialog itself. In this case, you can add a `tabIndex` with a value of -1 to the element. This will not violate this rule.
+
 ### References
 
   1. [Fundamental Keyboard Navigation Conventions](https://www.w3.org/TR/wai-aria-practices-1.1/#kbd_generalnav)

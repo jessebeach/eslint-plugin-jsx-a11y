@@ -23,7 +23,8 @@ const ruleTester = new RuleTester();
 const ruleName = 'no-noninteractive-tabindex';
 
 const expectedError = {
-  message: '`tabIndex` should only be declared on interactive elements.',
+  message:
+    'Non-interactive elements should only ever be focused, not tabbable.',
   type: 'JSXAttribute',
 };
 

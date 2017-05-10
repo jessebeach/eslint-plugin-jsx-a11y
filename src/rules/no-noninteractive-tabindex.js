@@ -27,7 +27,7 @@ import { generateObjSchema, arraySchema } from '../util/schemas';
 import getTabIndex from '../util/getTabIndex';
 
 const errorMessage =
-  '`tabIndex` should only be declared on interactive elements.';
+  'Non-interactive elements should only ever be focused, not tabbable.';
 
 const schema = generateObjSchema({
   roles: {
